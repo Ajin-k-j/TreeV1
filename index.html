@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Community Christmas Tree</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        /* Darker, cosmic background */
+        body { margin: 0; overflow: hidden; font-family: 'Poppins', sans-serif; background-color: #0f172a; }
+        .font-christmas { font-family: 'Mountains of Christmas', cursive; }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.1); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        #loading-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: #0f172a; z-index: 50; display: flex; 
+            justify-content: center; align-items: center; flex-direction: column;
+            transition: opacity 1s ease;
+        }
+
+        /* UI Layer Structure */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .pointer-auto {
+            pointer-events: auto;
+        }
+
+        /* Transparent/Minimalist Tooltip Style */
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.2); /* Very subtle transparent dark tint */
+            color: #fff; 
+            padding: 6px 12px;
+            border-radius: 20px; /* Pill shape */
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            white-space: nowrap;
+            backdrop-filter: blur(2px); /* Slight blur */
+            border: 1px solid rgba(255, 255, 255, 0.15); /* Subtle border */
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9); /* Strong text shadow for readability */
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="text-4xl md:text-5xl text-yellow-400 font-christmas mb-4 animate-pulse text-center px-4">Loading Christmas Magic...</div>
+    </div>
+
+    <!-- Tooltip Element -->
+    <div id="tooltip"></div>
+
+    <!-- Main UI Layer -->
+    <div id="ui-layer">
+        
+        <!-- TOP SECTION: Title & Initiative -->
+        <div class="flex justify-between items-start p-4 md:p-6 w-full">
+            <!-- Title (Top Left) -->
+            <div class="pointer-auto">
+                <h1 class="text-3xl md:text-5xl text-white font-christmas drop-shadow-[0_0_10px_rgba(255,215,0,0.5)] leading-none">
+                    <span class="text-red-500">Gift</span> of Love
+                </h1>
+            </div>
+            
+            <!-- Initiative (Top Right) - Centered Text -->
+            <div class="text-center pointer-auto bg-black/20 p-2 rounded-lg backdrop-blur-sm">
+                <div class="text-yellow-400 font-bold text-sm md:text-lg">KCYM Ponkandam</div>
+                <div class="text-white opacity-80 text-xs md:text-sm">Initiative</div>
+            </div>
+        </div>
+
+        <!-- RIGHT CENTER: Action Button -->
+        <div class="absolute top-1/2 right-4 transform -translate-y-1/2 flex flex-col items-end pointer-auto z-20">
+            <button onclick="openGiftModal()" class="group relative px-6 py-3 md:px-8 md:py-4 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold text-lg shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 ring-4 ring-red-900 ring-opacity-50">
+                <span class="text-2xl">🎁</span>
+                <span class="hidden md:inline">Hang a Gift</span>
+                <div class="absolute inset-0 rounded-full border border-white opacity-30 group-hover:animate-ping"></div>
+            </button>
+        </div>
+
+        <!-- BOTTOM CENTER: Powered By -->
+        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-auto text-center">
+            <div class="text-gray-500 text-[10px] font-light tracking-widest uppercase opacity-70">
+                Powered by ThinkerBytes
+            </div>
+        </div>
+    </div>
+
+    <!-- Interaction Modal (Reading a Gift) -->
+    <div id="read-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm transition-all duration-300 opacity-0">
+        <div class="glass bg-gray-900 text-white p-6 md:p-8 rounded-2xl max-w-sm w-full transform scale-95 transition-transform duration-300 shadow-2xl border-t-4" id="read-card-content">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-600 flex items-center justify-center text-xl shadow-lg">
+                    🎄
+                </div>
+                <button onclick="closeReadModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <h3 class="text-lg text-gray-300 uppercase tracking-wider text-[10px] font-semibold mb-1">From</h3>
+            <h2 id="read-name" class="text-2xl font-christmas text-yellow-400 mb-4 break-words">Name Here</h2>
+            <div class="bg-white bg-opacity-5 p-4 rounded-lg border border-white border-opacity-10 max-h-40 overflow-y-auto custom-scroll">
+                <p id="read-message" class="text-base italic font-light text-gray-100 leading-relaxed break-words">
+                    "Message goes here..."
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Gift Modal (Form) -->
+    <div id="add-modal" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-black bg-opacity-80 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+            <button onclick="closeGiftModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl">&times;</button>
+            
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-christmas text-red-600 font-bold">Add Your Gift</h2>
+                <p class="text-gray-500 text-xs">Your contribution helps the community.</p>
+            </div>
+
+            <form id="gift-form" onsubmit="handleFormSubmit(event)">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Select Gift Type</label>
+                        <div class="flex gap-2 justify-center bg-gray-100 p-2 rounded-lg">
+                            <label class="flex-1 text-center cursor-pointer">
+                                <input type="radio" name="giftType" value="card" checked class="peer sr-only">
+                                <div class="py-2 px-1 rounded-md text-sm font-medium text-gray-600 peer-checked:bg-white peer-checked:text-red-600 peer-checked:shadow-sm transition-all">
+                                    Card (Rs 10)
+                                </div>
+                            </label>
+                            <label class="flex-1 text-center cursor-pointer">
+                                <input type="radio" name="giftType" value="ornament" class="peer sr-only">
+                                <div class="py-2 px-1 rounded-md text-sm font-medium text-gray-600 peer-checked:bg-white peer-checked:text-green-600 peer-checked:shadow-sm transition-all">
+                                    Ornament (Rs 50)
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Your Name</label>
+                        <input type="text" id="input-name" required maxlength="15" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm" placeholder="e.g. The John Family">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Message</label>
+                        <textarea id="input-message" required maxlength="80" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-sm" placeholder="Merry Christmas!"></textarea>
+                    </div>
+
+                    <div id="color-options">
+                        <label class="block text-xs font-bold text-gray-700 mb-2 uppercase">Color</label>
+                        <div class="flex gap-3 justify-center">
+                            <!-- Card Colors -->
+                            <label class="cursor-pointer gift-type-card">
+                                <input type="radio" name="color" value="#ffffff" checked class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-gray-100 border border-gray-300 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <label class="cursor-pointer gift-type-card">
+                                <input type="radio" name="color" value="#fecaca" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-red-200 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <label class="cursor-pointer gift-type-card">
+                                <input type="radio" name="color" value="#fde047" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-yellow-300 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <label class="cursor-pointer gift-type-card">
+                                <input type="radio" name="color" value="#bae6fd" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-blue-200 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <!-- Ornament Colors -->
+                            <label class="cursor-pointer gift-type-ornament hidden">
+                                <input type="radio" name="color" value="#ef4444" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-red-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <label class="cursor-pointer gift-type-ornament hidden">
+                                <input type="radio" name="color" value="#eab308" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-yellow-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <label class="cursor-pointer gift-type-ornament hidden">
+                                <input type="radio" name="color" value="#3b82f6" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-blue-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                            <label class="cursor-pointer gift-type-ornament hidden">
+                                <input type="radio" name="color" value="#a855f7" class="peer sr-only">
+                                <div class="w-6 h-6 rounded-full bg-purple-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-800 transform hover:scale-110 transition-transform"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full mt-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 rounded-lg shadow-md transform transition-transform active:scale-95 text-sm uppercase tracking-wider">
+                    Hang My Blessing
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Three.js Container -->
+    <div id="canvas-container" class="fixed inset-0 w-full h-full z-0"></div>
+
+    <script>
+        // --- THREE.JS SCENE SETUP ---
+        
+        let scene, camera, renderer, controls;
+        let treeGroup, worldGroup;
+        let raycaster, mouse;
+        const interactableGifts = []; 
+        const tooltip = document.getElementById('tooltip');
+
+        // Camera Animation State
+        let isAnimatingCamera = false;
+        let cameraAnimStartPos = new THREE.Vector3();
+        let cameraAnimTargetPos = new THREE.Vector3();
+        let controlsAnimStartTarget = new THREE.Vector3();
+        let controlsAnimEndTarget = new THREE.Vector3();
+        let cameraAnimStartTime = 0;
+        const CAMERA_ANIM_DURATION = 1500; // ms
+
+        // Tree configuration constants
+        const TREE_LEVELS = 5;
+        const TREE_LEVEL_HEIGHT = 4;
+        const TREE_MAX_RADIUS = 8;
+        const LEVEL_OVERLAP = 1.0;
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a); 
+            scene.fog = new THREE.FogExp2(0x0a0a1a, 0.015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6, 28); 
+
+            // WebGL Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.5;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+            controls.minDistance = 5; 
+            controls.maxDistance = 60;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.8;
+            controls.target.set(0, 8, 0); 
+            controls.enableZoom = true;
+
+            // --- LIGHTING ---
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xadd8e6, 0x000000, 0.3);
+            scene.add(hemiLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            mainLight.position.set(10, 25, 20);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 1024;
+            mainLight.shadow.mapSize.height = 1024;
+            scene.add(mainLight);
+
+            // --- BUILD THE WORLD ---
+            worldGroup = new THREE.Group();
+            scene.add(worldGroup);
+            worldGroup.position.y = -2; 
+
+            const treeBaseLight = new THREE.PointLight(0xffaa00, 1.5, 30);
+            treeBaseLight.position.set(0, 3, 0);
+            worldGroup.add(treeBaseLight);
+
+            createEnvironment(worldGroup);
+            createTree(worldGroup);
+            createGiftBoxes(worldGroup);
+            
+            // Raycaster
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown, false);
+            renderer.domElement.addEventListener('pointermove', onPointerMove, false);
+            
+            setTimeout(() => {
+                const loader = document.getElementById('loading-screen');
+                loader.style.opacity = 0;
+                setTimeout(() => loader.style.display = 'none', 1000);
+            }, 1500);
+
+            // GENERATE MOCK DATA FOR TESTING
+            generateMockData();
+
+            animate();
+        }
+
+        function generateMockData() {
+            const count = 100;
+            const colors = ['#ffffff', '#fecaca', '#fde047', '#bae6fd', '#ef4444', '#eab308', '#3b82f6', '#a855f7'];
+            const firstNames = ["Alex", "Sam", "Jordan", "Casey", "Jamie", "Taylor", "Morgan", "Riley", "Avery", "Parker"];
+            const lastNames = ["Smith", "Doe", "Johnson", "Brown", "Davis", "Miller", "Wilson", "Moore", "Taylor", "Anderson"];
+
+            for(let i = 0; i < count; i++) {
+                const isCard = Math.random() > 0.6; // 60% cards, 40% ornaments
+                const name = firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
+                const message = `Merry Christmas! Wishing you joy and peace this season. Test Gift #${i+1}`;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                const data = { name, message, color };
+                
+                // Pass 'false' as second argument to prevent camera zoom for these items
+                if (isCard) {
+                    window.addCardToScene(data, false);
+                } else {
+                    window.addOrnamentToScene(data, false);
+                }
+            }
+        }
+
+        function focusOnObject(position) {
+            isAnimatingCamera = true;
+            cameraAnimStartTime = Date.now();
+            controls.autoRotate = false;
+
+            // Start Positions
+            cameraAnimStartPos.copy(camera.position);
+            controlsAnimStartTarget.copy(controls.target);
+
+            // End Positions
+            // 1. Target looks at the object
+            controlsAnimEndTarget.copy(position);
+
+            // 2. Camera moves closer. 
+            // Calculate a vector from tree center (0, pos.y, 0) to object (pos.x, pos.y, pos.z)
+            // Then move out along that vector by some distance
+            const direction = new THREE.Vector3(position.x, 0, position.z).normalize();
+            const distance = 8; // How far away to stop
+            
+            // Target camera position is object position + direction * distance
+            // Plus a little height adjustment
+            cameraAnimTargetPos.copy(position).add(direction.multiplyScalar(distance));
+            cameraAnimTargetPos.y += 2; // Look slightly down
+        }
+
+        function createEnvironment(parentGroup) {
+            // Ground
+            const geometry = new THREE.CircleGeometry(60, 64);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x1e293b, 
+                roughness: 1,
+                metalness: 0
+            });
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            parentGroup.add(ground);
+
+            // Snow Particles
+            const snowGeo = new THREE.BufferGeometry();
+            const snowCount = 1500; 
+            const posArray = new Float32Array(snowCount * 3);
+            
+            for(let i = 0; i < snowCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 100; 
+                posArray[i+1] = Math.random() * 60; 
+                posArray[i+2] = (Math.random() - 0.5) * 100;
+            }
+            
+            snowGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const snowMat = new THREE.PointsMaterial({
+                size: 0.2,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            const snowSystem = new THREE.Points(snowGeo, snowMat);
+            snowSystem.name = "snow";
+            scene.add(snowSystem); 
+        }
+
+        function createGiftBoxes(parentGroup) {
+            const boxCount = 12;
+            const boxColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500];
+            
+            for(let i = 0; i < boxCount; i++) {
+                const group = new THREE.Group();
+                const size = 1.0 + Math.random() * 0.8; 
+                
+                const color = boxColors[Math.floor(Math.random() * boxColors.length)];
+                const boxGeo = new THREE.BoxGeometry(size, size, size);
+                const boxMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.1 });
+                const box = new THREE.Mesh(boxGeo, boxMat);
+                box.castShadow = true;
+                box.receiveShadow = true;
+                box.position.y = size / 2;
+                group.add(box);
+
+                const ribbonMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+                const r1Geo = new THREE.BoxGeometry(size * 1.02, size * 1.02, size * 0.2);
+                const r1 = new THREE.Mesh(r1Geo, ribbonMat);
+                r1.position.y = size / 2;
+                group.add(r1);
+
+                const r2Geo = new THREE.BoxGeometry(size * 0.2, size * 1.02, size * 1.02);
+                const r2 = new THREE.Mesh(r2Geo, ribbonMat);
+                r2.position.y = size / 2;
+                group.add(r2);
+
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 4 + Math.random() * 8; 
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                group.position.set(x, 0, z);
+                group.rotation.y = Math.random() * Math.PI;
+                parentGroup.add(group);
+            }
+        }
+
+        function createTree(parentGroup) {
+            treeGroup = new THREE.Group();
+            parentGroup.add(treeGroup);
+
+            const treeMat = new THREE.MeshStandardMaterial({ 
+                color: 0x166534,
+                roughness: 0.8,
+                flatShading: true,
+                emissive: 0x064e3b,
+                emissiveIntensity: 0.3
+            });
+
+            for (let i = 0; i < TREE_LEVELS; i++) {
+                const radius = TREE_MAX_RADIUS - (i * (TREE_MAX_RADIUS/TREE_LEVELS) * 0.8);
+                const geometry = new THREE.ConeGeometry(radius, TREE_LEVEL_HEIGHT + LEVEL_OVERLAP, 16); 
+                const cone = new THREE.Mesh(geometry, treeMat);
+                
+                const coneHeight = TREE_LEVEL_HEIGHT + LEVEL_OVERLAP;
+                cone.position.y = (i * TREE_LEVEL_HEIGHT) + 2 + (coneHeight / 2);
+                
+                cone.userData = {
+                    levelIndex: i,
+                    baseY: (i * TREE_LEVEL_HEIGHT) + 2,
+                    bottomRadius: radius,
+                    height: coneHeight
+                };
+                
+                cone.castShadow = true;
+                cone.receiveShadow = true;
+                treeGroup.add(cone);
+            }
+
+            const trunkGeo = new THREE.CylinderGeometry(1.5, 2, 4, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3f2e22 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 2; 
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const starGeo = new THREE.OctahedronGeometry(1.5, 0);
+            const starMat = new THREE.MeshStandardMaterial({ 
+                color: 0xfacc15, 
+                emissive: 0xfacc15,
+                emissiveIntensity: 2.5 
+            });
+            const star = new THREE.Mesh(starGeo, starMat);
+            star.position.y = (TREE_LEVELS * TREE_LEVEL_HEIGHT) + 3;
+            
+            const starLight = new THREE.PointLight(0xfacc15, 2, 30);
+            starLight.position.set(0, 0, 0);
+            star.add(starLight);
+            
+            star.name = "star";
+            treeGroup.add(star);
+
+            // Fairy Lights
+            const lightColors = [0xff0000, 0xffff00, 0x0000ff, 0x00ff00, 0xffa500, 0x8a2be2]; 
+            for(let i=0; i<50; i++) { 
+                const c = lightColors[Math.floor(Math.random()*lightColors.length)];
+                const light = new THREE.PointLight(c, 0.8, 5); 
+                
+                const hRatio = Math.random();
+                const y = hRatio * 20 + 2;
+                const r = 7 * (1-hRatio) + 0.5;
+                const angle = Math.random() * Math.PI * 2;
+                
+                light.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+                treeGroup.add(light);
+
+                const bulb = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.1, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: c })
+                );
+                bulb.position.copy(light.position);
+                treeGroup.add(bulb);
+            }
+        }
+
+        function createCardTexture(name, colorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; 
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = colorHex;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 256, 128, 15);
+            ctx.fill();
+
+            ctx.strokeStyle = '#d1d5db'; 
+            ctx.lineWidth = 8;
+            ctx.stroke();
+
+            ctx.fillStyle = '#1f2937';
+            ctx.font = 'bold 40px Poppins';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            let displayName = name;
+            if (displayName.length > 8) displayName = displayName.substring(0, 8) + '..';
+            ctx.fillText(displayName, 128, 64);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        function getTreeSurfacePosition() {
+            // Distribute more evenly for mock data to avoid clustering at top
+            // Use a weighted random to favor middle/bottom sections slightly
+            const levelIndex = Math.floor(Math.random() * (TREE_LEVELS)); 
+            const bottomRadius = TREE_MAX_RADIUS - (levelIndex * (TREE_MAX_RADIUS/TREE_LEVELS) * 0.8);
+            const coneHeight = TREE_LEVEL_HEIGHT + LEVEL_OVERLAP;
+            const baseY = (levelIndex * TREE_LEVEL_HEIGHT) + 2;
+            const localHeight = Math.random() * (coneHeight * 0.8); // Avoid very top tip
+            const radiusAtHeight = bottomRadius * (1 - (localHeight / coneHeight));
+            const angle = Math.random() * Math.PI * 2;
+            const x = Math.cos(angle) * radiusAtHeight;
+            const z = Math.sin(angle) * radiusAtHeight;
+            const y = baseY + localHeight;
+            const slopeRadius = bottomRadius;
+            const slopeHeight = coneHeight;
+            const slopeAngle = Math.atan2(slopeRadius, slopeHeight); 
+            return { x, y, z, angle, slopeAngle };
+        }
+
+        window.addCardToScene = (data, animate = true) => {
+            const texture = createCardTexture(data.name, data.color);
+            const geometry = new THREE.PlaneGeometry(0.8, 0.4); 
+            const material = new THREE.MeshStandardMaterial({
+                map: texture,
+                side: THREE.DoubleSide,
+                emissive: 0xffffff,
+                emissiveIntensity: 0.2, 
+                roughness: 0.4
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            const pos = getTreeSurfacePosition();
+            
+            mesh.position.set(pos.x, pos.y, pos.z);
+            mesh.lookAt(pos.x * 2, pos.y, pos.z * 2);
+            mesh.rotateX(-pos.slopeAngle); 
+            
+            // FIX: Removed negative scaling to fix mirroring
+            // mesh.scale.set(-1, 1, 1); 
+
+            mesh.userData = {
+                isGift: true,
+                type: 'card',
+                name: data.name,
+                message: data.message,
+                color: data.color
+            };
+
+            treeGroup.add(mesh);
+            interactableGifts.push(mesh);
+            
+            // Only trigger zoom if animate is true (default)
+            if (animate) {
+                const worldPos = new THREE.Vector3(pos.x, pos.y - 2, pos.z);
+                focusOnObject(worldPos);
+            }
+        };
+
+        window.addOrnamentToScene = (data, animate = true) => {
+            const geo = new THREE.SphereGeometry(0.5, 24, 24); 
+            const mat = new THREE.MeshStandardMaterial({
+                color: data.color || 0xff0000,
+                metalness: 0.7,
+                roughness: 0.2,
+                emissive: data.color || 0xff0000,
+                emissiveIntensity: 0.4
+            });
+            
+            const mesh = new THREE.Mesh(geo, mat);
+            const pos = getTreeSurfacePosition();
+            
+            mesh.position.set(pos.x, pos.y, pos.z);
+            mesh.userData = {
+                isGift: true,
+                type: 'ornament',
+                name: data.name,
+                message: data.message,
+                color: data.color
+            };
+            
+            mesh.castShadow = true;
+            const hookGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0.5, 0), 
+                new THREE.Vector3(0, 0.5, -0.3) 
+            ]);
+            const hookLine = new THREE.Line(hookGeo, new THREE.LineBasicMaterial({ color: 0xcccccc }));
+            mesh.add(hookLine);
+            mesh.lookAt(pos.x * 2, pos.y, pos.z * 2);
+
+            treeGroup.add(mesh);
+            interactableGifts.push(mesh);
+
+            mesh.scale.set(0,0,0);
+            let s = 0;
+            const grow = setInterval(() => {
+                s += 0.1;
+                mesh.scale.set(s, s, s);
+                if (s >= 1) clearInterval(grow);
+            }, 30);
+
+            // Only trigger zoom if animate is true
+            if (animate) {
+                const worldPos = new THREE.Vector3(pos.x, pos.y - 2, pos.z);
+                focusOnObject(worldPos);
+            }
+        };
+
+        let startX = 0;
+        let startY = 0;
+
+        function onPointerDown(event) {
+            startX = event.clientX;
+            startY = event.clientY;
+        }
+
+        function onPointerMove(event) {
+            // Hide tooltip if modal is open
+            if (!document.getElementById('read-modal').classList.contains('hidden')) {
+                tooltip.style.display = 'none';
+                return;
+            }
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactableGifts);
+            
+            // Hover effect & Tooltip
+            if (intersects.length > 0) {
+                document.body.style.cursor = 'pointer';
+                controls.autoRotate = false;
+
+                // Show Tooltip
+                const name = intersects[0].object.userData.name;
+                tooltip.innerText = name;
+                tooltip.style.display = 'block';
+                
+                // Keep tooltip near mouse but ensure it stays in window
+                let top = event.clientY + 15;
+                let left = event.clientX + 15;
+                
+                // Simple bounds check
+                if (left + tooltip.offsetWidth > window.innerWidth) left = event.clientX - tooltip.offsetWidth - 10;
+                if (top + tooltip.offsetHeight > window.innerHeight) top = event.clientY - tooltip.offsetHeight - 10;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+
+            } else {
+                document.body.style.cursor = 'default';
+                // Don't resume rotate if we are animating focus
+                if (!isAnimatingCamera) controls.autoRotate = true;
+                tooltip.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('pointerup', (event) => {
+            if (event.target.closest('#ui-layer') || event.target.closest('.glass') || event.target.closest('form')) return;
+
+            // Reliable click detection: check distance moved
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+
+            // If moved less than 5 pixels, treat as click
+            if (distance < 5) {
+                onMouseClick(event);
+            }
+        });
+
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactableGifts);
+
+            if (intersects.length > 0) {
+                const data = intersects[0].object.userData;
+                
+                // HIDE TOOLTIP IMMEDIATELY
+                tooltip.style.display = 'none';
+                
+                showReadModal(data);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Custom cubic ease-in-out for smoother animation
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Camera Animation Logic
+            if (isAnimatingCamera) {
+                const elapsed = Date.now() - cameraAnimStartTime;
+                const progress = Math.min(elapsed / CAMERA_ANIM_DURATION, 1);
+                const ease = easeInOutCubic(progress); // Smooth step
+
+                // Interpolate Position
+                camera.position.lerpVectors(cameraAnimStartPos, cameraAnimTargetPos, ease);
+                
+                // Interpolate Controls Target (Orbit Center)
+                controls.target.lerpVectors(controlsAnimStartTarget, controlsAnimEndTarget, ease);
+
+                if (progress >= 1) {
+                    isAnimatingCamera = false;
+                    // Optional: Re-enable auto rotate after delay? 
+                    // For now keep static so user can look
+                }
+            } else {
+                controls.update();
+            }
+
+            const snow = scene.getObjectByName('snow');
+            if(snow) {
+                const positions = snow.geometry.attributes.position.array;
+                for(let i = 1; i < positions.length; i += 3) {
+                    positions[i] -= 0.1; 
+                    if (positions[i] < -2) positions[i] = 50; 
+                }
+                snow.geometry.attributes.position.needsUpdate = true;
+                snow.rotation.y += 0.001;
+            }
+
+            const star = treeGroup ? treeGroup.getObjectByName('star') : null;
+            if (star) {
+                star.rotation.y -= 0.02;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+
+        // --- UI LOGIC ---
+        const addModal = document.getElementById('add-modal');
+        const readModal = document.getElementById('read-modal');
+
+        window.openGiftModal = () => {
+            addModal.classList.remove('hidden');
+            addModal.classList.add('flex');
+            controls.autoRotate = false;
+        };
+
+        window.closeGiftModal = () => {
+            addModal.classList.add('hidden');
+            addModal.classList.remove('flex');
+            if(!isAnimatingCamera) controls.autoRotate = true;
+        };
+
+        document.querySelectorAll('input[name="giftType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const type = e.target.value;
+                const cardColors = document.querySelectorAll('.gift-type-card');
+                const ornamentColors = document.querySelectorAll('.gift-type-ornament');
+                
+                if(type === 'card') {
+                    cardColors.forEach(el => el.classList.remove('hidden'));
+                    ornamentColors.forEach(el => el.classList.add('hidden'));
+                    document.querySelector('input[name="color"][value="#ffffff"]').checked = true;
+                } else {
+                    cardColors.forEach(el => el.classList.add('hidden'));
+                    ornamentColors.forEach(el => el.classList.remove('hidden'));
+                    document.querySelector('input[name="color"][value="#ef4444"]').checked = true;
+                }
+            });
+        });
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "Hanging...";
+            btn.disabled = true;
+
+            const name = document.getElementById('input-name').value;
+            const msg = document.getElementById('input-message').value;
+            const color = document.querySelector('input[name="color"]:checked').value;
+            const type = document.querySelector('input[name="giftType"]:checked').value;
+
+            if (type === 'card') {
+                window.addCardToScene({ name, message: msg, color });
+            } else {
+                window.addOrnamentToScene({ name, message: msg, color });
+            }
+
+            btn.innerText = "Done!";
+            setTimeout(() => {
+                closeGiftModal();
+                btn.disabled = false;
+                btn.innerText = originalText;
+                document.getElementById('gift-form').reset();
+                document.querySelector('input[name="giftType"][value="card"]').click();
+                // Do NOT re-enable autoRotate immediately so user can see the zoom animation
+            }, 1000);
+        }
+
+        function showReadModal(data) {
+            document.getElementById('read-name').innerText = data.name;
+            document.getElementById('read-message').innerText = `"${data.message}"`;
+            
+            readModal.classList.remove('hidden');
+            readModal.classList.remove('opacity-0');
+            controls.autoRotate = false;
+        }
+
+        window.closeReadModal = () => {
+            readModal.classList.add('opacity-0');
+            setTimeout(() => readModal.classList.add('hidden'), 300);
+            if(!isAnimatingCamera) controls.autoRotate = true;
+        };
+
+    </script>
+</body>
+</html>
